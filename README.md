@@ -1,8 +1,31 @@
+# Pricepally Data Science
+
+This repository hosts the codebase for data-driven solutions powering **Pricepally’s** core operations.
+
+We are building production-ready machine learning systems to improve business intelligence, customer engagement, and operational efficiency.
+
+---
+
+## Focus Areas
+
+- 🤖 **Chatbot (April)** – NLP-powered assistant for customer interaction  
+- 🧮 **Sales Lead Automation** – ML models to streamline and score sales prospects  
+- 📦 **Demand Forecasting** – Time series models to optimize inventory and reduce stockouts  
+- 🔁 **Churn Prediction** – Identify at-risk customers and improve retention  
+- 🖼️ **Image Recognition** – Automating visual tasks with computer vision  
+
+---
+
+## ⚙️ Status
+
+This project is in its early development phase. More structure, documentation, and setup instructions will be added as we build.
+
 # Pricepally Demand Forecasting System
 
 [![Python 3.9+](https://img.shields.io/badge/python-3.9+-blue.svg)](https://www.python.org/downloads/)
 [![XGBoost](https://img.shields.io/badge/XGBoost-Powered-orange.svg)](https://xgboost.readthedocs.io/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+
 
 > Machine learning-powered demand forecasting for Pricepally's B2C product inventory management.
 
@@ -16,7 +39,7 @@
 - [Configuration](#configuration)
 - [Model Details](#model-details)
 - [Logging & Monitoring](#logging--monitoring)
-- [AWS Deployment](#aws-deployment)
+- [Deployment](#deployment)
 - [Project Structure](#project-structure)
 - [Contributing](#contributing)
 - [License](#license)
@@ -25,7 +48,7 @@
 
 ## 🎯 Overview
 
-The Pricepally Demand Forecasting System is a production-ready machine learning pipeline that predicts weekly product demand using XGBoost and adaptive heuristics. Built for AWS containerized deployment, it features comprehensive logging, error handling, and supports Pricepally's 4-week month business calendar.
+The Pricepally Demand Forecasting System is a production-ready machine learning pipeline that predicts weekly product demand using XGBoost and adaptive heuristics. Built for containerized deployment, it features comprehensive logging, error handling, and supports Pricepally's 4-week month business calendar.
 
 ### Key Capabilities
 
@@ -48,7 +71,6 @@ The Pricepally Demand Forecasting System is a production-ready machine learning 
 - **Adaptive Selection**: Automatically chooses best method based on:
   - **Naive Forecast**: For stable products (low volatility)
   - **Rolling Mean**: For products with moderate fluctuations
-  - **Exponential Smoothing**: For trending products
   - **Zero Forecast**: For inactive products (>4 weeks no sales)
 
 ### Production Features
@@ -64,7 +86,7 @@ The Pricepally Demand Forecasting System is a production-ready machine learning 
 ```
 ┌─────────────────────────────────────────────────────────────┐
 │                    Data Input Layer                          │
-│  CSV File (forecast_date_1.csv) → Will support DB later     │
+│       CSV File (forecast_date_1.csv) → Or DB     │
 └────────────────────┬────────────────────────────────────────┘
                      │
                      ▼
@@ -109,8 +131,8 @@ The Pricepally Demand Forecasting System is a production-ready machine learning 
                      ▼
 ┌─────────────────────────────────────────────────────────────┐
 │                   Output Layer                               │
-│  - forecast_output.csv (forecasts)                          │
-│  - failed_forecasts.csv (errors)                            │
+│  - forecast_output.csv or DB Table (forecasts)                          │
+│  - failed_forecasts.csv or DB Table (errors)                            │
 │  - Logs to CloudWatch                                        │
 └─────────────────────────────────────────────────────────────┘
 ```
@@ -186,10 +208,10 @@ HEURISTIC_NAIVE                107             2.7%
 ✅ Forecast pipeline completed successfully!
 ```
 
-### Output Files
+### Output
 
-- **`forecast_output.csv`**: Main forecast file with 2-week predictions per product
-- **`failed_forecasts.csv`**: Products that failed (if any) with error reasons
+- **`Forecast Table or forecast_output.csv`**: Main forecast file with 2-week predictions per product
+- **`Failed Forecast Table or failed_forecasts.csv`**: Products that failed (if any) with error reasons
 - **`logs/forecast_*.log`**: Detailed execution logs
 
 ---
@@ -294,111 +316,6 @@ logs/
 ├── forecast_20260207_143015.log          # Full detailed logs
 └── forecast_errors_20260207_143015.log   # Errors only
 ```
-
-### CloudWatch Integration
-
-Logs automatically stream to AWS CloudWatch when deployed:
-
-```
-/ecs/pricepally-forecast
-└── forecast/forecast-container/...
-    └── 2026/02/07/[$LATEST]
-        ├── 14:30:15 - INFO - Pipeline started
-        ├── 14:32:45 - INFO - Model trained
-        └── 14:35:22 - INFO - Pipeline completed
-```
-
-### Useful CloudWatch Queries
-
-**Find all errors:**
-```
-fields @timestamp, @message
-| filter @message like /ERROR/
-| sort @timestamp desc
-```
-
-**Monitor XGBoost coverage:**
-```
-fields @message
-| filter @message like /XGBOOST_RECURSIVE/
-| parse @message "XGBOOST_RECURSIVE * products (*%)" as count, pct
-| stats latest(count), latest(pct) by bin(1h)
-```
-
-**Track pipeline performance:**
-```
-fields @message
-| filter @message like /Total pipeline time/
-| parse @message "Total pipeline time: *s" as duration
-| stats max(duration), avg(duration), p99(duration)
-```
-
----
-
-## ☁️ AWS Deployment
-
-### Container Build
-
-```bash
-# Build Docker image
-docker build -t pricepally-forecast:latest .
-
-# Tag for ECR
-docker tag pricepally-forecast:latest \
-  YOUR_AWS_ACCOUNT.dkr.ecr.REGION.amazonaws.com/pricepally-forecast:latest
-
-# Push to ECR
-docker push YOUR_AWS_ACCOUNT.dkr.ecr.REGION.amazonaws.com/pricepally-forecast:latest
-```
-
-### Environment Variables
-
-```bash
-PYTHONUNBUFFERED=1     # Ensure logs flush to CloudWatch
-LOG_LEVEL=INFO         # Production log level
-FORECAST_HORIZON=2     # Optional: override config
-```
-
-### ECS Task Definition
-
-```json
-{
-  "family": "pricepally-forecast",
-  "containerDefinitions": [{
-    "name": "forecast-container",
-    "image": "YOUR_ECR_IMAGE:latest",
-    "memory": 2048,
-    "cpu": 1024,
-    "environment": [
-      {"name": "PYTHONUNBUFFERED", "value": "1"},
-      {"name": "LOG_LEVEL", "value": "INFO"}
-    ],
-    "logConfiguration": {
-      "logDriver": "awslogs",
-      "options": {
-        "awslogs-group": "/ecs/pricepally-forecast",
-        "awslogs-region": "us-east-1",
-        "awslogs-stream-prefix": "forecast"
-      }
-    }
-  }]
-}
-```
-
-### CloudWatch Alarms
-
-```bash
-# Alert on pipeline failures
-aws cloudwatch put-metric-alarm \
-  --alarm-name pricepally-forecast-failure \
-  --metric-name Errors \
-  --namespace AWS/Logs \
-  --statistic Sum \
-  --period 300 \
-  --threshold 5 \
-  --comparison-operator GreaterThanThreshold
-```
-
 ---
 
 ## 📁 Project Structure
@@ -426,8 +343,7 @@ pricepally-forecast/
 │       ├── date_utils.py            # Date conversion utilities
 │       └── logging_config.py        # Logging setup
 ├── logs/                             # Generated logs (gitignored)
-├── main.py                           # Entry point
-├── Dockerfile                        # Container definition
+├── main.py                           # Entry point                        # Container definition
 ├── requirements.txt                  # Python dependencies
 ├── .gitignore
 ├── README.md
@@ -437,18 +353,6 @@ pricepally-forecast/
 ---
 
 ## 🧪 Testing
-
-### Run Evaluation
-
-```bash
-# Evaluate model performance on historical data
-python scripts/evaluate_xgboost_all_products_no_leak_safe.py
-```
-
-**Outputs:**
-- `xgboost_metrics_no_leak_safe.csv`: MAE & RMSLE per product
-- `xgboost_forecasts_no_leak_safe.csv`: Predictions vs actuals
-- `xgboost_skipped_products.csv`: Products with insufficient data
 
 ### Local Testing
 
@@ -473,8 +377,6 @@ head -20 forecast_output.csv
 - [ ] **Database Output**: Write forecasts directly to PostgreSQL/MySQL
 - [ ] **Seasonality Detection**: Automatically detect and incorporate weekly/monthly patterns
 - [ ] **Model Versioning**: Track model performance over time
-- [ ] **A/B Testing**: Compare forecast methods in production
-- [ ] **Real-time Updates**: Incremental model updates as new data arrives
 - [ ] **External Features**: Weather, holidays, promotions
 - [ ] **Multi-horizon Forecasts**: Extend beyond 2 weeks
 - [ ] **Confidence Intervals**: Probabilistic forecasts with uncertainty quantification
@@ -482,36 +384,12 @@ head -20 forecast_output.csv
 ### Under Consideration
 
 - Automated hyperparameter tuning (Optuna/Hyperopt)
-- Ensemble methods (XGBoost + Prophet)
+- Ensemble methods (XGBoost (or LGBM) + ARIMA + Heuristics)
 - Product clustering for similar products
 - Promotional impact modeling
-- Supply chain constraint integration
 
 ---
 
-## 🤝 Contributing
-
-We welcome contributions! Please follow these guidelines:
-
-### Development Setup
-
-```bash
-# Fork the repository
-git clone https://github.com/YOUR_USERNAME/demand-forecasting.git
-cd demand-forecasting
-
-# Create feature branch
-git checkout -b feature/your-feature-name
-
-# Make changes and test
-python main.py
-
-# Commit with clear message
-git commit -m "Add: brief description of changes"
-
-# Push and create pull request
-git push origin feature/your-feature-name
-```
 
 ### Code Standards
 
@@ -534,44 +412,9 @@ Please include:
 
 ## 📄 License
 
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
-
+This project is licensed under the MIT License
 ---
 
 ## 👥 Authors & Acknowledgments
 
 **Pricepally Data Science Team**
-
-Special thanks to:
-- Product team for business requirements
-- Engineering team for infrastructure support
-- Operations team for data quality feedback
-
----
-
-## 📞 Contact & Support
-
-- **Issues**: [GitHub Issues](https://github.com/pricepally/demand-forecasting/issues)
-- **Email**: datascience@pricepally.com
-- **Documentation**: [Wiki](https://github.com/pricepally/demand-forecasting/wiki)
-
----
-
-## 📈 Changelog
-
-### v1.0.0 (2026-02-07)
-- Initial production release
-- XGBoost forecasting with recursive predictions
-- Adaptive heuristic fallbacks
-- CloudWatch logging integration
-- AWS ECS deployment ready
-
----
-
-## 🔐 Security
-
-For security concerns, please email security@pricepally.com rather than using the issue tracker.
-
----
-
-**Built with ❤️ by Pricepally**
