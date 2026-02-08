@@ -293,7 +293,6 @@ From evaluation on 3,353 products:
 | XGBoost | 42% | 5.10 | 0.575 |
 | Rolling Mean | 32% | 4.94 | 0.481 |
 | Naive | 13% | 5.17 | 0.337 |
-| Exp Smoothing | 9% | 9.81 | 0.616 |
 | Zero (Inactive) | 5% | 4.32 | 0.941 |
 
 **Overall:** MAE 5.42, RMSLE 0.54
